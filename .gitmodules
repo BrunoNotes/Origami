@@ -1,0 +1,6 @@
+[submodule "src/vendor/clay/src"]
+	path = src/vendor/clay/src
+	url = https://github.com/nicbarker/clay
+[submodule "src/vendor/sdl3/src"]
+	path = src/vendor/sdl3/src
+	url = https://github.com/libsdl-org/SDL
