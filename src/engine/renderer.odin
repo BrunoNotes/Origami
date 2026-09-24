@@ -10,19 +10,20 @@ Renderer :: struct {
     window_width, window_height: i32,
     window_open:                 bool,
     device:                      ^sdl3.GPUDevice,
+    depth_texture:               Texture,
     config:                      RendererConfig,
 }
 
 RendererConfig :: struct {
     present_mode:              sdl3.GPUPresentMode,
-    wireframe, mouse_captured: bool,
+    mouse_captured: bool,
     swapchain_composition:     sdl3.GPUSwapchainComposition,
 }
 
 RendererInitOpts :: struct {
     window_title:                          string,
     window_width, window_height:           i32,
-    vsync, hdr, wireframe, mouse_captured: bool,
+    vsync, hdr, mouse_captured: bool,
 }
 
 initRenderer :: proc(
@@ -55,7 +56,6 @@ initRenderer :: proc(
     )
 
     renderer.config.mouse_captured = opts.mouse_captured
-    renderer.config.wireframe = opts.wireframe
 
     device_props := sdl3.CreateProperties()
 
@@ -130,10 +130,18 @@ initRenderer :: proc(
         ),
     )
 
+    renderer.depth_texture = initDepthTexture(
+        renderer.window_width,
+        renderer.window_height,
+        renderer.device,
+    )
+
     return renderer
 }
 
 destroyRenderer :: proc(renderer: ^Renderer) {
+    destroyTexture(renderer.depth_texture, renderer.device)
+
     sdl3.DestroyGPUDevice(renderer.device)
     sdl3.DestroyWindow(renderer.window)
 
@@ -180,13 +188,24 @@ beginRender :: proc(
         cycle_resolve_texture = false,
     }
 
+    depth_target_info: sdl3.GPUDepthStencilTargetInfo = {
+        texture       = renderer.depth_texture.handle,
+        clear_depth   = 1.0,
+        load_op       = .CLEAR,
+        store_op      = .DONT_CARE,
+        stencil_load_op = .CLEAR,
+        stencil_store_op = .DONT_CARE,
+        cycle         = false,
+        clear_stencil = 0,
+        mip_level     = 0,
+        layer         = 0,
+    }
 
     render_pass := sdl3.BeginGPURenderPass(
         cmd_buffer,
         &color_target_info,
         1,
-        // &depth_target_info,
-        nil,
+        &depth_target_info,
     )
 
     // sdl3.BindGPUGraphicsPipeline(render_pass, renderer.mesh_pipeline)
