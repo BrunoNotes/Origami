@@ -59,3 +59,44 @@ sdl3LogHandler :: proc "c" (
         log.infof("SDL: [%v] %v", category, message)
     }
 }
+
+flyCameraController :: proc(camera: ^Camera, input: ^Input, delta_time: f32) {
+    sprint_mult: f32 = 4
+    direction: linalg.Vector3f32
+    if isKeyPressed(input, .W) {
+        direction += VEC3FORWARD
+    }
+    if isKeyPressed(input, .S) {
+        direction += VEC3BACK
+    }
+    if isKeyPressed(input, .D) {
+        direction += VEC3RIGHT
+    }
+    if isKeyPressed(input, .A) {
+        direction += VEC3LEFT
+    }
+    if isKeyPressed(input, .SPACE) {
+        direction += VEC3UP
+    }
+    if isKeyPressed(input, .LCTRL) {
+        direction += VEC3DOWN
+    }
+
+    direction = direction == 0 ? direction : linalg.normalize(direction) // normalize
+    camera.velocity = direction * delta_time
+
+    if isKeyPressed(input, .LSHIFT) {
+        camera.velocity *= sprint_mult
+    }
+
+    if isMouseButtonPressed(input, .M_RIGHT) {
+        look_sensitivity: f32 = 0.002
+
+        mouse_position := getMousePosition(input)
+        mouse_delta := look_sensitivity * -mouse_position
+
+        camera.pitch = linalg.clamp(mouse_delta.y, -1.54, 1.54)
+        camera.yaw = mouse_delta.x
+
+    }
+}

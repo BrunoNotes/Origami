@@ -49,14 +49,16 @@ initNode :: proc(
         node.id = opts.id
     }
 
-    node.child_nodes = make(map[string]^Node, allocator)
-
     #partial switch opts.type {
     case .Child:
         {
             if len(opts.parent_id) <= 0 {
                 log.fatalf("parent_id not specified for node: %v", node.id)
             }
+        }
+    case:
+        {
+            node.child_nodes = make(map[string]^Node, allocator)
         }
     }
 
@@ -106,12 +108,9 @@ initNode :: proc(
     node.rotation = opts.rotation
     node.translation = opts.translation
 
-    node.scale = opts.scale
-    if node.scale == 0 {
-        node.scale = 1
-    }
+    node.scale = opts.scale == 0 ? 1 : opts.scale
 
-    node.color = opts.color
+    node.color = opts.color == 0 ? 1 : opts.color
 
     // TODO: Group more cmds, this is not the most performant
     cmd := [?]sdl3.GPUIndexedIndirectDrawCommand {
@@ -137,6 +136,18 @@ initNode :: proc(
 }
 
 destroyNode :: proc(node: ^Node, device: ^sdl3.GPUDevice) {
+    if node == nil {
+        log.errorf("Node is nil, unable to destroy")
+        return
+    }
+
+    if node.child_nodes != nil {
+        for _, child in node.child_nodes {
+            destroyNode(child, device)
+        }
+        delete(node.child_nodes)
+    }
+
     if node.indirect_draw_buffer != nil {
         sdl3.ReleaseGPUBuffer(device, node.indirect_draw_buffer)
     }
