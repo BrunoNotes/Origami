@@ -41,7 +41,7 @@ main :: proc() {
                 window_title = "test",
                 window_width = 800,
                 window_height = 600,
-                vsync = true,
+                vsync = false,
             },
         },
     )
@@ -91,6 +91,14 @@ main :: proc() {
 
     sponza_node := eng.nodeFromGltf(sponza_data, engine.renderer, sponza_path)
     defer eng.destroyNode(sponza_node, engine.renderer)
+
+    text_node := eng.initTextNode(
+        "hello",
+        engine.renderer.default_font,
+        engine.renderer,
+    )
+    defer eng.destroyNode(text_node, engine.renderer)
+    text_node.translation = {-1, -1, 0}
 
     free_all(context.temp_allocator)
 
@@ -147,14 +155,14 @@ main :: proc() {
         // eng.drawText("Hello world", engine.renderer, cmd_buffer, render_pass)
         // buf: [8]byte
         // fps := strconv.write_float(buf[:], engine.fps, 'f', 2, 64)
-        fps := fmt.tprintf("%v", engine.fps)
+        fps := fmt.tprintf("fps: %v", engine.fps)
 
-        eng.drawText(
+        eng.drawTextNode(
+            text_node,
             fps,
             engine.renderer,
             cmd_buffer,
             render_pass,
-            translation = {0.95, 0.95, 0},
         )
 
         eng.endRender(cmd_buffer, render_pass)

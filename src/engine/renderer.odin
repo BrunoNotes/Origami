@@ -155,7 +155,7 @@ initRenderer :: proc(
 
     // TODO: make a font size update
     renderer.default_font = sdlCheck(
-        sdl3_ttf.OpenFont("assets/fonts/JetBrainsMono-Regular.ttf", 14),
+        sdl3_ttf.OpenFont("assets/fonts/JetBrainsMono-Regular.ttf", 16),
         "Failed to load font:",
     )
 

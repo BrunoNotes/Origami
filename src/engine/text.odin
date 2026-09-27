@@ -2,19 +2,27 @@ package engine
 
 import "../vendor/sdl3"
 import "../vendor/sdl3_ttf"
+import "core:log"
 import "core:math/linalg"
 import "core:strings"
 
+TextNode :: struct {
+    indices:  []u32,
+    vertices: []Vertex,
+    texture:  ^sdl3.GPUTexture,
+}
+
 //TODO: make a pipeline for text
 
-drawText :: proc(
+drawTextNode :: proc(
+    node: ^Node,
     text: string,
     renderer: ^Renderer,
     cmd_buffer: ^sdl3.GPUCommandBuffer,
     render_pass: ^sdl3.GPURenderPass,
     camera: Maybe(Camera) = nil,
     font: ^sdl3_ttf.Font = nil,
-    translation: linalg.Vector3f32 = 0,
+    allocator := context.allocator,
 ) {
     font := font
     camera := camera
@@ -27,17 +35,25 @@ drawText :: proc(
         camera = D2_CAMERA
     }
 
-    text_to_render := sdlCheck(
-        sdl3_ttf.CreateText(
-            renderer.txt_engine,
-            font,
-            strings.clone_to_cstring(text, context.temp_allocator),
-            0,
-        ),
-    )
-    defer sdl3_ttf.DestroyText(text_to_render)
+    // log.debugf("new: \"%v\", old: \"%v\"", text, node.text)
+    if text != node.text {
+        updateTextNode(node, text, font, renderer, allocator)
+    }
 
-    sequence := sdlCheck(sdl3_ttf.GetGPUTextDrawData(text_to_render))
+    updateNode(node)
+    drawNode(node, camera.?, cmd_buffer, render_pass, renderer)
+}
+
+sequenceToTextNode :: proc(
+    text: ^sdl3_ttf.Text,
+    font: ^sdl3_ttf.Font = nil,
+    window_width, window_height: f32,
+) -> TextNode {
+    text_node: TextNode
+
+    font_height := cast(f32)sdl3_ttf.GetFontHeight(font)
+
+    sequence := sdlCheck(sdl3_ttf.GetGPUTextDrawData(text))
     for sequence != nil {
         if sequence.num_vertices <= 0 ||
            sequence.num_indices <= 0 ||
@@ -52,12 +68,11 @@ drawText :: proc(
             context.temp_allocator,
         )
         for i: i32 = 0; i < sequence.num_vertices; i += 1 {
-            font_height := cast(f32)sdl3_ttf.GetFontHeight(font)
             x: f32 = sequence.xy[i].x
             y: f32 = sequence.xy[i].y + font_height
 
-            x = x / (cast(f32)renderer.window_width / 2.0)
-            y = y / (cast(f32)renderer.window_height / 2.0)
+            x = x / (window_width / 2.0)
+            y = y / (window_height / 2.0)
             vertex: Vertex = {
                 position = {x, y, 0.0},
                 uv       = {sequence.uv[i].x, sequence.uv[i].y},
@@ -72,23 +87,56 @@ drawText :: proc(
             indices[i] = cast(u32)sequence.indices[i]
         }
 
-        texture: Texture = {
-            handle  = sequence.atlas_texture,
-            sampler = renderer.font_sampler,
-            destroy = false,
+        text_node = {
+            vertices = vertices,
+            indices  = indices,
+            texture  = sequence.atlas_texture,
         }
-
-        text_node := initNode(
-            {vertices = vertices[:], indices = indices[:], texture = texture},
-            renderer,
-        )
-        defer destroyNode(text_node, renderer)
-
-        text_node.translation = translation
-
-        updateNode(text_node)
-        drawNode(text_node, camera.?, cmd_buffer, render_pass, renderer)
-
         sequence = sequence.next
     }
+
+    return text_node
+}
+
+updateTextNode :: proc(
+    node: ^Node,
+    text: string,
+    font: ^sdl3_ttf.Font,
+    renderer: ^Renderer,
+    allocator := context.allocator,
+) {
+    text_to_render := sdlCheck(
+        sdl3_ttf.CreateText(
+            renderer.txt_engine,
+            font,
+            strings.clone_to_cstring(text, context.temp_allocator),
+            0,
+        ),
+    )
+    defer sdl3_ttf.DestroyText(text_to_render)
+
+    txt_node := sequenceToTextNode(
+        text_to_render,
+        font,
+        cast(f32)renderer.window_width,
+        cast(f32)renderer.window_height,
+    )
+
+    node.vertex_buffer, node.vertex_len = createNodeVertexBuffer(
+        txt_node.vertices,
+        node,
+        renderer.device,
+    )
+
+    node.index_buffer, node.index_len = createNodeIndexBuffer(
+        txt_node.indices,
+        node,
+        renderer.device,
+    )
+
+    node.texture.handle = txt_node.texture
+
+    node.text = strings.clone(text, allocator)
+
+    node.indirect_draw_buffer = createNodeDrawBuffer(node, renderer.device)
 }
