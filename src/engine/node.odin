@@ -1,11 +1,11 @@
 package engine
 
-import "core:strings"
 import "../vendor/sdl3"
 import "../vendor/sdl3_ttf"
 import "core:encoding/uuid"
 import "core:log"
 import "core:math/linalg"
+import "core:strings"
 
 NodeType :: enum {
     Undefined,
@@ -116,6 +116,12 @@ initTextNode :: proc(
     renderer: ^Renderer,
     allocator := context.allocator,
 ) -> ^Node {
+    text := text
+
+    // TODO: sdl_ttf does not accept empty strings, find a solution to accept
+    // this is a temp hack
+    assert(len(text) > 0, "TODO: fix, sdl_ttf does not accept empty strings")
+
     text_to_render := sdlCheck(
         sdl3_ttf.CreateText(
             renderer.txt_engine,

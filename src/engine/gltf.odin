@@ -398,73 +398,65 @@ nodeFromGltf :: proc(
     for scene in data.scenes {
         for node in scene.nodes {
             if node.mesh != nil && len(node.mesh.primitives) > 0 {
-                gltf_nodes := processGltfNode(node, file_path, allocator)
-
-                for gltf_node in gltf_nodes {
-                    node_init_opts: NodeInitOpts
-                    node_init_opts.vertices = gltf_node.vertices
-                    node_init_opts.indices = gltf_node.indices
-                    node_init_opts.rotation = gltf_node.rotation
-                    node_init_opts.translation = gltf_node.translation
-                    node_init_opts.scale = gltf_node.scale
-
-                    if gltf_node.texture.data != nil {
-                        defer freeImage(gltf_node.texture)
-
-                        node_init_opts.texture = initTextureImage(
-                            gltf_node.texture,
-                            renderer.device,
-                            renderer.texture_sampler,
-                            allocator,
-                        )
-                    }
-
-                    if result_node == nil {
-                        result_node = initNode(node_init_opts, renderer)
-                    } else {
-                        node_init_opts.type = .Child
-                        node_init_opts.parent_id = result_node.id
-
-                        child_node := initNode(node_init_opts, renderer)
-                        result_node.child_nodes[child_node.id] = child_node
-                    }
-                }
+                result_node = gltfNodeToNode(
+                    result_node,
+                    node,
+                    file_path,
+                    renderer,
+                )
             }
 
-            // TODO: remove this code duplication
             for child_node in node.children {
-                gltf_nodes := processGltfNode(child_node, file_path, allocator)
-
-                for gltf_node in gltf_nodes {
-                    node_init_opts: NodeInitOpts
-                    node_init_opts.vertices = gltf_node.vertices
-                    node_init_opts.indices = gltf_node.indices
-                    node_init_opts.rotation = gltf_node.rotation
-                    node_init_opts.translation = gltf_node.translation
-                    node_init_opts.scale = gltf_node.scale
-
-                    if gltf_node.texture.data != nil {
-                        defer freeImage(gltf_node.texture)
-
-                        node_init_opts.texture = initTextureImage(
-                            gltf_node.texture,
-                            renderer.device,
-                            renderer.texture_sampler,
-                            allocator,
-                        )
-                    }
-
-                    if result_node == nil {
-                        result_node = initNode(node_init_opts, renderer)
-                    } else {
-                        node_init_opts.type = .Child
-                        node_init_opts.parent_id = result_node.id
-
-                        child_node := initNode(node_init_opts, renderer)
-                        result_node.child_nodes[child_node.id] = child_node
-                    }
-                }
+                result_node = gltfNodeToNode(
+                    result_node,
+                    child_node,
+                    file_path,
+                    renderer,
+                )
             }
+        }
+    }
+
+    return result_node
+}
+
+gltfNodeToNode :: proc(
+    result_node: ^Node,
+    node: ^cgltf.node,
+    file_path: string,
+    renderer: ^Renderer,
+    allocator := context.allocator,
+) -> ^Node {
+    result_node := result_node
+    gltf_nodes := processGltfNode(node, file_path, allocator)
+
+    for gltf_node in gltf_nodes {
+        node_init_opts: NodeInitOpts
+        node_init_opts.vertices = gltf_node.vertices
+        node_init_opts.indices = gltf_node.indices
+        node_init_opts.rotation = gltf_node.rotation
+        node_init_opts.translation = gltf_node.translation
+        node_init_opts.scale = gltf_node.scale
+
+        if gltf_node.texture.data != nil {
+            defer freeImage(gltf_node.texture)
+
+            node_init_opts.texture = initTextureImage(
+                gltf_node.texture,
+                renderer.device,
+                renderer.texture_sampler,
+                allocator,
+            )
+        }
+
+        if result_node == nil {
+            result_node = initNode(node_init_opts, renderer)
+        } else {
+            node_init_opts.type = .Child
+            node_init_opts.parent_id = result_node.id
+
+            child_node := initNode(node_init_opts, renderer)
+            result_node.child_nodes[child_node.id] = child_node
         }
     }
 
