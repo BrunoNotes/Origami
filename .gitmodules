@@ -4,6 +4,6 @@
 [submodule "src/vendor/sdl3/src"]
 	path = src/vendor/sdl3/src
 	url = https://github.com/libsdl-org/SDL
-[submodule "src/vendor/sdl_ttf/src"]
-	path = src/vendor/sdl_ttf/src
+[submodule "src/vendor/sdl3_ttf/src"]
+	path = src/vendor/sdl3_ttf/src
 	url = https://github.com/libsdl-org/SDL_ttf
