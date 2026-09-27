@@ -1,29 +1,33 @@
 package engine
 
 import "../vendor/sdl3"
+import "../vendor/sdl3_ttf"
 import "base:runtime"
 import "core:c"
 import "core:strings"
 
 Renderer :: struct {
-    window:                      ^sdl3.Window,
-    window_width, window_height: i32,
-    window_open:                 bool,
-    device:                      ^sdl3.GPUDevice,
-    depth_texture:               Texture,
-    config:                      RendererConfig,
+    window:                        ^sdl3.Window,
+    window_width, window_height:   i32,
+    window_open:                   bool,
+    device:                        ^sdl3.GPUDevice,
+    texture_sampler, font_sampler: ^sdl3.GPUSampler,
+    depth_texture:                 Texture,
+    txt_engine:                    ^sdl3_ttf.TextEngine,
+    default_font:                  ^sdl3_ttf.Font,
+    config:                        RendererConfig,
 }
 
 RendererConfig :: struct {
-    present_mode:              sdl3.GPUPresentMode,
-    mouse_captured: bool,
-    swapchain_composition:     sdl3.GPUSwapchainComposition,
+    present_mode:          sdl3.GPUPresentMode,
+    mouse_captured:        bool,
+    swapchain_composition: sdl3.GPUSwapchainComposition,
 }
 
 RendererInitOpts :: struct {
-    window_title:                          string,
-    window_width, window_height:           i32,
-    vsync, hdr, mouse_captured: bool,
+    window_title:                string,
+    window_width, window_height: i32,
+    vsync, hdr, mouse_captured:  bool,
 }
 
 initRenderer :: proc(
@@ -40,11 +44,16 @@ initRenderer :: proc(
         opts.window_title = "Origami Window"
     }
 
-    renderer.window = sdl3.CreateWindow(
-        strings.clone_to_cstring(opts.window_title, context.temp_allocator),
-        cast(c.int)opts.window_width,
-        cast(c.int)opts.window_height,
-        {.RESIZABLE, .VULKAN},
+    renderer.window = sdlCheck(
+        sdl3.CreateWindow(
+            strings.clone_to_cstring(
+                opts.window_title,
+                context.temp_allocator,
+            ),
+            cast(c.int)opts.window_width,
+            cast(c.int)opts.window_height,
+            {.RESIZABLE, .VULKAN},
+        ),
     )
 
     renderer.window_open = true
@@ -130,16 +139,35 @@ initRenderer :: proc(
         ),
     )
 
+    renderer.texture_sampler = initTextureSampler(renderer.device)
+    renderer.font_sampler = initTextureSampler(renderer.device, .CLAMP_TO_EDGE)
+
     renderer.depth_texture = initDepthTexture(
         renderer.window_width,
         renderer.window_height,
         renderer.device,
     )
 
+    renderer.txt_engine = sdlCheck(
+        sdl3_ttf.CreateGPUTextEngine(renderer.device),
+    )
+    sdl3_ttf.SetGPUTextEngineWinding(renderer.txt_engine, .COUNTER_CLOCKWISE)
+
+    // TODO: make a font size update
+    renderer.default_font = sdlCheck(
+        sdl3_ttf.OpenFont("assets/fonts/JetBrainsMono-Regular.ttf", 14),
+        "Failed to load font:",
+    )
+
     return renderer
 }
 
 destroyRenderer :: proc(renderer: ^Renderer) {
+    sdl3_ttf.CloseFont(renderer.default_font)
+    sdl3_ttf.DestroyGPUTextEngine(renderer.txt_engine)
+
+    destroyTextureSampler(renderer.font_sampler, renderer.device)
+    destroyTextureSampler(renderer.texture_sampler, renderer.device)
     destroyTexture(renderer.depth_texture, renderer.device)
 
     sdl3.DestroyGPUDevice(renderer.device)
@@ -158,6 +186,8 @@ beginRender :: proc(
 
     swapchain_texture: ^sdl3.GPUTexture
     swapchain_width, swapchain_height: u32
+    // swapchain_width: u32 = cast(u32)renderer.window_width
+    // swapchain_height: u32 = cast(u32)renderer.window_height
     assert(
         sdl3.WaitAndAcquireGPUSwapchainTexture(
             cmd_buffer,
@@ -189,16 +219,16 @@ beginRender :: proc(
     }
 
     depth_target_info: sdl3.GPUDepthStencilTargetInfo = {
-        texture       = renderer.depth_texture.handle,
-        clear_depth   = 1.0,
-        load_op       = .CLEAR,
-        store_op      = .DONT_CARE,
-        stencil_load_op = .CLEAR,
+        texture          = renderer.depth_texture.handle,
+        clear_depth      = 1.0,
+        load_op          = .CLEAR,
+        store_op         = .DONT_CARE,
+        stencil_load_op  = .CLEAR,
         stencil_store_op = .DONT_CARE,
-        cycle         = false,
-        clear_stencil = 0,
-        mip_level     = 0,
-        layer         = 0,
+        cycle            = false,
+        clear_stencil    = 0,
+        mip_level        = 0,
+        layer            = 0,
     }
 
     render_pass := sdl3.BeginGPURenderPass(

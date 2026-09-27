@@ -38,7 +38,7 @@ NodeInitOpts :: struct {
 
 initNode :: proc(
     opts: NodeInitOpts,
-    device: ^sdl3.GPUDevice,
+    renderer: ^Renderer,
     allocator := context.allocator,
 ) -> ^Node {
     node := new(Node, allocator)
@@ -71,7 +71,7 @@ initNode :: proc(
         node.vertex_buffer = uploadGpuBuffer(
             vertex_buffer_info,
             raw_data(opts.vertices[:]),
-            device,
+            renderer.device,
         )
 
         assert(node.vertex_buffer != nil)
@@ -87,7 +87,7 @@ initNode :: proc(
         node.index_buffer = uploadGpuBuffer(
             index_buffer_info,
             raw_data(opts.indices[:]),
-            device,
+            renderer.device,
         )
 
         assert(node.index_buffer != nil)
@@ -101,7 +101,12 @@ initNode :: proc(
         img := loadBlankImage()
         defer freeImage(img)
 
-        node.texture = initTextureImage(img, device, allocator)
+        node.texture = initTextureImage(
+            img,
+            renderer.device,
+            renderer.texture_sampler,
+            allocator,
+        )
     }
 
     node.instances = opts.instances <= 0 ? 1 : opts.instances
@@ -129,13 +134,13 @@ initNode :: proc(
             size = u32(size_of(sdl3.GPUIndexedIndirectDrawCommand) * len(cmd)),
         },
         raw_data(cmd[:]),
-        device,
+        renderer.device,
     )
 
     return node
 }
 
-destroyNode :: proc(node: ^Node, device: ^sdl3.GPUDevice) {
+destroyNode :: proc(node: ^Node, renderer: ^Renderer) {
     if node == nil {
         log.errorf("Node is nil, unable to destroy")
         return
@@ -143,23 +148,23 @@ destroyNode :: proc(node: ^Node, device: ^sdl3.GPUDevice) {
 
     if node.child_nodes != nil {
         for _, child in node.child_nodes {
-            destroyNode(child, device)
+            destroyNode(child, renderer)
         }
         delete(node.child_nodes)
     }
 
     if node.indirect_draw_buffer != nil {
-        sdl3.ReleaseGPUBuffer(device, node.indirect_draw_buffer)
+        sdl3.ReleaseGPUBuffer(renderer.device, node.indirect_draw_buffer)
     }
 
-    destroyTexture(node.texture, device)
+    destroyTexture(node.texture, renderer.device)
 
     if node.index_buffer != nil {
-        sdl3.ReleaseGPUBuffer(device, node.index_buffer)
+        sdl3.ReleaseGPUBuffer(renderer.device, node.index_buffer)
     }
 
     if node.vertex_buffer != nil {
-        sdl3.ReleaseGPUBuffer(device, node.vertex_buffer)
+        sdl3.ReleaseGPUBuffer(renderer.device, node.vertex_buffer)
     }
 
     free(node)
@@ -191,6 +196,7 @@ drawNode :: proc(
     camera: Camera,
     cmd_buffer: ^sdl3.GPUCommandBuffer,
     render_pass: ^sdl3.GPURenderPass,
+    renderer: ^Renderer,
 ) {
     camera := camera
 
@@ -241,7 +247,10 @@ drawNode :: proc(
     sdl3.BindGPUIndexBuffer(render_pass, index_buffer_bindings, ._32BIT)
 
     texture_buffer_bindings := [?]sdl3.GPUTextureSamplerBinding {
-        {texture = node.texture.handle, sampler = node.texture.sampler},
+        {
+            texture = node.texture.handle,
+            sampler = node.texture.sampler == nil ? renderer.texture_sampler : node.texture.sampler,
+        },
     }
 
     sdl3.BindGPUFragmentSamplers(
@@ -269,6 +278,6 @@ drawNode :: proc(
     )
 
     for _, child in node.child_nodes {
-        drawNode(child, camera, cmd_buffer, render_pass)
+        drawNode(child, camera, cmd_buffer, render_pass, renderer)
     }
 }

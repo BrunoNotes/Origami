@@ -2,9 +2,9 @@ package main
 
 import "core:fmt"
 import "core:log"
-import "core:math"
+import "core:math/linalg"
 import vmem "core:mem/virtual"
-import "core:time"
+import "core:strconv"
 
 import eng "./engine"
 import "./vendor/sdl3"
@@ -59,7 +59,12 @@ main :: proc() {
         },
         engine.renderer,
     )
-    defer sdl3.ReleaseGPUGraphicsPipeline(engine.renderer.device, pipeline)
+    defer eng.destroyPipeline(engine.renderer.device, pipeline)
+
+    camera := eng.PERSPECTIVE_CAMERA
+    camera.translation = {0, 0, 5}
+
+    // d2_camera := eng.D2_CAMERA
 
     triangle_node := eng.initNode(
         {
@@ -70,30 +75,22 @@ main :: proc() {
             },
             indices = []u32{0, 1, 2},
         },
-        engine.renderer.device,
+        engine.renderer,
     )
-    defer eng.destroyNode(triangle_node, engine.renderer.device)
-
-    camera := eng.PERSPECTIVE_CAMERA
-    camera.translation = {0, 0, 5}
-    // camera := eng.D2_CAMERA
+    defer eng.destroyNode(triangle_node, engine.renderer)
 
     box_data, _ := eng.loadGltf("assets/models/BoxTextured.glb")
     defer eng.destroyGltf(box_data)
 
-    box_node := eng.nodeFromGltf(box_data, engine.renderer.device)
-    defer eng.destroyNode(box_node, engine.renderer.device)
+    box_node := eng.nodeFromGltf(box_data, engine.renderer)
+    defer eng.destroyNode(box_node, engine.renderer)
 
     sponza_path := "/home/bruno/tmp/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf"
     sponza_data, _ := eng.loadGltf(sponza_path)
     defer eng.destroyGltf(sponza_data)
 
-    sponza_node := eng.nodeFromGltf(
-        sponza_data,
-        engine.renderer.device,
-        sponza_path,
-    )
-    defer eng.destroyNode(sponza_node, engine.renderer.device)
+    sponza_node := eng.nodeFromGltf(sponza_data, engine.renderer, sponza_path)
+    defer eng.destroyNode(sponza_node, engine.renderer)
 
     free_all(context.temp_allocator)
 
@@ -104,7 +101,12 @@ main :: proc() {
 
         eng.processEvents(engine)
 
-        eng.flyCameraController(&camera, engine.input, engine.delta_time)
+        eng.flyCameraController(
+            &camera,
+            engine.input,
+            engine.delta_time,
+            engine.renderer,
+        )
         eng.updateCameraProjection(
             &camera,
             cast(f32)engine.renderer.window_width,
@@ -116,14 +118,46 @@ main :: proc() {
         sdl3.BindGPUGraphicsPipeline(render_pass, pipeline)
 
         eng.updateNode(triangle_node)
-        eng.drawNode(triangle_node, camera, cmd_buffer, render_pass)
+        eng.drawNode(
+            triangle_node,
+            camera,
+            cmd_buffer,
+            render_pass,
+            engine.renderer,
+        )
 
         eng.updateNode(box_node)
-        eng.drawNode(box_node, camera, cmd_buffer, render_pass)
+        eng.drawNode(
+            box_node,
+            camera,
+            cmd_buffer,
+            render_pass,
+            engine.renderer,
+        )
 
         eng.updateNode(sponza_node)
-        eng.drawNode(sponza_node, camera, cmd_buffer, render_pass)
+        eng.drawNode(
+            sponza_node,
+            camera,
+            cmd_buffer,
+            render_pass,
+            engine.renderer,
+        )
+
+        // eng.drawText("Hello world", engine.renderer, cmd_buffer, render_pass)
+        // buf: [8]byte
+        // fps := strconv.write_float(buf[:], engine.fps, 'f', 2, 64)
+        fps := fmt.tprintf("%v", engine.fps)
+
+        eng.drawText(
+            fps,
+            engine.renderer,
+            cmd_buffer,
+            render_pass,
+            translation = {0.95, 0.95, 0},
+        )
 
         eng.endRender(cmd_buffer, render_pass)
+
     }
 }

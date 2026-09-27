@@ -35,13 +35,11 @@ InputState :: struct {
 }
 
 Input :: struct {
-    state: map[InputType]InputState,
+    state:        map[InputType]InputState,
     current_mode: InputMode,
 }
 
-initInput :: proc(
-    allocator: runtime.Allocator = context.allocator,
-) -> ^Input {
+initInput :: proc(allocator: runtime.Allocator = context.allocator) -> ^Input {
     input := new(Input, allocator)
 
     input.state = make(map[InputType]InputState, allocator)
@@ -129,4 +127,19 @@ getMouseScroll :: proc(
     } else {
         return VEC2ZERO
     }
+}
+
+setMouseCapture :: proc(renderer: ^Renderer, captured: bool) {
+    if renderer.config.mouse_captured == captured {
+        return
+    }
+
+    renderer.config.mouse_captured = captured
+
+    assert(
+        sdl3.SetWindowRelativeMouseMode(
+            renderer.window,
+            renderer.config.mouse_captured,
+        ),
+    )
 }

@@ -1,31 +1,29 @@
 package engine
 
-import "core:strings"
 import "../vendor/sdl3"
-import "core:log"
 import "core:encoding/uuid"
+import "core:log"
+import "core:strings"
 
 Texture :: struct {
     handle:  ^sdl3.GPUTexture,
     type:    sdl3.GPUTextureType,
     format:  sdl3.GPUTextureFormat,
     sampler: ^sdl3.GPUSampler,
+    destroy: bool,
 }
 
-initTextureImage :: proc(
-    img: Image,
+initTextureSampler :: proc(
     device: ^sdl3.GPUDevice,
-    allocator := context.allocator,
-) -> Texture {
-    tex: Texture
-
+    address_mode: sdl3.GPUSamplerAddressMode = .REPEAT,
+) -> ^sdl3.GPUSampler {
     sampler_info: sdl3.GPUSamplerCreateInfo = {
         min_filter        = .LINEAR,
         mag_filter        = .LINEAR,
         mipmap_mode       = .LINEAR,
-        address_mode_u    = .REPEAT,
-        address_mode_v    = .REPEAT,
-        address_mode_w    = .REPEAT,
+        address_mode_u    = address_mode,
+        address_mode_v    = address_mode,
+        address_mode_w    = address_mode,
         enable_anisotropy = true,
         max_anisotropy    = 16.0,
         mip_lod_bias      = 0.0,
@@ -34,7 +32,27 @@ initTextureImage :: proc(
         props             = 0,
     }
 
-    tex.sampler = sdl3.CreateGPUSampler(device, sampler_info)
+    return sdl3.CreateGPUSampler(device, sampler_info)
+}
+
+destroyTextureSampler :: proc(
+    sampler: ^sdl3.GPUSampler,
+    device: ^sdl3.GPUDevice,
+) {
+    sdl3.ReleaseGPUSampler(device, sampler)
+}
+
+initTextureImage :: proc(
+    img: Image,
+    device: ^sdl3.GPUDevice,
+    sampler: ^sdl3.GPUSampler = nil,
+    allocator := context.allocator,
+) -> Texture {
+    tex: Texture
+
+    if sampler == nil {
+        tex.sampler = initTextureSampler(device)
+    }
 
     tex.type = .D2
     tex.format = .R8G8B8A8_UNORM_SRGB
@@ -73,6 +91,8 @@ initTextureImage :: proc(
     )
 
     uploadTextureBuffer(tex.handle, img, device)
+
+    tex.destroy = true
 
     return tex
 }
@@ -134,12 +154,18 @@ initDepthTexture :: proc(
 
     tex.handle = sdl3.CreateGPUTexture(device, texture_info)
 
+    tex.destroy = true
+
     return tex
 }
 
 destroyTexture :: proc(texture: Texture, device: ^sdl3.GPUDevice) {
+    if !texture.destroy {
+        return
+    }
+
     if texture.sampler != nil {
-        sdl3.ReleaseGPUSampler(device, texture.sampler)
+        destroyTextureSampler(texture.sampler, device)
     }
     sdl3.ReleaseGPUTexture(device, texture.handle)
 }

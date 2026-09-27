@@ -60,7 +60,19 @@ sdl3LogHandler :: proc "c" (
     }
 }
 
-flyCameraController :: proc(camera: ^Camera, input: ^Input, delta_time: f32) {
+sdlCheck :: proc(ptr: $T, msg: string = "SDL error:") -> T {
+    if ptr == nil {
+        log.errorf("%v %v", msg, sdl3.GetError())
+    }
+    return ptr
+}
+
+flyCameraController :: proc(
+    camera: ^Camera,
+    input: ^Input,
+    delta_time: f32,
+    renderer: ^Renderer,
+) {
     sprint_mult: f32 = 4
     direction: linalg.Vector3f32
     if isKeyPressed(input, .W) {
@@ -98,5 +110,8 @@ flyCameraController :: proc(camera: ^Camera, input: ^Input, delta_time: f32) {
         camera.pitch = linalg.clamp(mouse_delta.y, -1.54, 1.54)
         camera.yaw = mouse_delta.x
 
+        setMouseCapture(renderer, true)
+    } else {
+        setMouseCapture(renderer, false)
     }
 }

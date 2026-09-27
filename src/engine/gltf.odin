@@ -389,7 +389,7 @@ processGltfNode :: proc(
 
 nodeFromGltf :: proc(
     data: ^cgltf.data,
-    device: ^sdl3.GPUDevice,
+    renderer: ^Renderer,
     file_path: string = "",
     allocator := context.allocator,
 ) -> ^Node {
@@ -413,18 +413,19 @@ nodeFromGltf :: proc(
 
                         node_init_opts.texture = initTextureImage(
                             gltf_node.texture,
-                            device,
+                            renderer.device,
+                            renderer.texture_sampler,
                             allocator,
                         )
                     }
 
                     if result_node == nil {
-                        result_node = initNode(node_init_opts, device)
+                        result_node = initNode(node_init_opts, renderer)
                     } else {
                         node_init_opts.type = .Child
                         node_init_opts.parent_id = result_node.id
 
-                        child_node := initNode(node_init_opts, device)
+                        child_node := initNode(node_init_opts, renderer)
                         result_node.child_nodes[child_node.id] = child_node
                     }
                 }
@@ -447,18 +448,19 @@ nodeFromGltf :: proc(
 
                         node_init_opts.texture = initTextureImage(
                             gltf_node.texture,
-                            device,
+                            renderer.device,
+                            renderer.texture_sampler,
                             allocator,
                         )
                     }
 
                     if result_node == nil {
-                        result_node = initNode(node_init_opts, device)
+                        result_node = initNode(node_init_opts, renderer)
                     } else {
                         node_init_opts.type = .Child
                         node_init_opts.parent_id = result_node.id
 
-                        child_node := initNode(node_init_opts, device)
+                        child_node := initNode(node_init_opts, renderer)
                         result_node.child_nodes[child_node.id] = child_node
                     }
                 }

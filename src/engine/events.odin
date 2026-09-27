@@ -16,6 +16,14 @@ processEvents :: proc(engine: ^Engine) {
 
                 engine.renderer.window_width = w_width
                 engine.renderer.window_height = w_height
+
+                destroyTexture(engine.renderer.depth_texture, engine.renderer.device)
+                engine.renderer.depth_texture = initDepthTexture(
+                    engine.renderer.window_width,
+                    engine.renderer.window_height,
+                    engine.renderer.device,
+                )
+
             }
         case .KEY_DOWN:
             {
@@ -38,7 +46,8 @@ processEvents :: proc(engine: ^Engine) {
                 input_event.down = true
                 input_event.up = false
                 input_event.double_click = event.button.clicks >= 2
-                engine.input.state[cast(MouseInput)event.button.button] = input_event
+                engine.input.state[cast(MouseInput)event.button.button] =
+                    input_event
             }
         case .MOUSE_BUTTON_UP:
             {
@@ -47,7 +56,8 @@ processEvents :: proc(engine: ^Engine) {
                 input_event.down = false
                 input_event.up = true
                 input_event.double_click = event.button.clicks >= 2
-                engine.input.state[cast(MouseInput)event.button.button] = input_event
+                engine.input.state[cast(MouseInput)event.button.button] =
+                    input_event
             }
         case .MOUSE_MOTION:
             {

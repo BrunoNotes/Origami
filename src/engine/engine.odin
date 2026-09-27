@@ -4,6 +4,7 @@ import "core:log"
 import "core:math"
 import "../vendor/sdl3"
 import "core:time"
+import "../vendor/sdl3_ttf"
 
 Engine :: struct {
     renderer:              ^Renderer,
@@ -32,6 +33,8 @@ initEngine :: proc(
     }
 
     sdl3.SetLogOutputFunction(sdl3LogHandler, nil)
+
+    assert(sdl3_ttf.Init())
 
     engine.renderer = initRenderer(opts.renderer, allocator)
 
@@ -62,7 +65,7 @@ updateEngine :: proc(engine: ^Engine) {
         engine.fps = math.round(
             (engine.frames * 1000) / time.duration_milliseconds(elapsed_time),
         )
-        log.debugf("fps: %v", engine.fps)
+        // log.debugf("fps: %v", engine.fps)
         engine.frames = 0
         engine.start_time = current_time
     }

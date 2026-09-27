@@ -48,6 +48,7 @@ VertexOut vertexMain(VertexIn input) {
   float4x4 view = mul(projection, u_view_matrix);
   float4x4 transform = mul(view, u_transform_matrix);
   output.position = mul(transform, float4(input.position, 1.0));
+  // output.position = float4(input.position, 1.0);
 
   output.color = input.color;
   output.uv = input.uv;

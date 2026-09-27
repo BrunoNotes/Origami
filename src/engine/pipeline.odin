@@ -1,7 +1,7 @@
 package engine
 
-import "core:log"
 import "../vendor/sdl3"
+import "core:log"
 
 PipelineInitOpts :: struct {
     wireframe:                  bool,
@@ -177,6 +177,13 @@ initPipeline :: proc(
     sdl3.ReleaseGPUShader(renderer.device, fragment_shader)
 
     return graphics_pipeline
+}
+
+destroyPipeline :: proc(
+    device: ^sdl3.GPUDevice,
+    pipeline: ^sdl3.GPUGraphicsPipeline,
+) {
+    sdl3.ReleaseGPUGraphicsPipeline(device, pipeline)
 }
 
 initGpuShader :: proc(
