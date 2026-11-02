@@ -398,24 +398,23 @@ nodeFromGltf :: proc(
     for scene in data.scenes {
         for node in scene.nodes {
             if node.mesh != nil && len(node.mesh.primitives) > 0 {
-                result_nodes := gltfNodeToNode(
-                    node,
-                    file_path,
-                    renderer,
-                    allocator
-                )
-
-                append(&result, ..result_nodes[:])
+                gltf_nodes := processGltfNode(node, file_path, allocator)
+                for gltf_node in gltf_nodes {
+                    append(
+                        &result,
+                        gltfNodeToNode(gltf_node, renderer, allocator),
+                    )
+                }
             }
 
             for child_node in node.children {
-                result_nodes := gltfNodeToNode(
-                    child_node,
-                    file_path,
-                    renderer,
-                    allocator,
-                )
-                append(&result, ..result_nodes[:])
+                gltf_nodes := processGltfNode(child_node, file_path, allocator)
+                for gltf_node in gltf_nodes {
+                    append(
+                        &result,
+                        gltfNodeToNode(gltf_node, renderer, allocator),
+                    )
+                }
             }
         }
     }
@@ -424,35 +423,28 @@ nodeFromGltf :: proc(
 }
 
 gltfNodeToNode :: proc(
-    node: ^cgltf.node,
-    file_path: string,
+    gltf_node: GltfNode,
     renderer: ^Renderer,
     allocator := context.allocator,
-) -> []^Node {
-    result := make([dynamic]^Node)
-    gltf_nodes := processGltfNode(node, file_path, allocator)
+) -> ^Node {
+    node_init_opts: NodeInitOpts
+    node_init_opts.vertices = gltf_node.vertices
+    node_init_opts.indices = gltf_node.indices
+    node_init_opts.rotation = gltf_node.rotation
+    node_init_opts.translation = gltf_node.translation
+    node_init_opts.scale = gltf_node.scale
 
-    for gltf_node in gltf_nodes {
-        node_init_opts: NodeInitOpts
-        node_init_opts.vertices = gltf_node.vertices
-        node_init_opts.indices = gltf_node.indices
-        node_init_opts.rotation = gltf_node.rotation
-        node_init_opts.translation = gltf_node.translation
-        node_init_opts.scale = gltf_node.scale
+    if gltf_node.texture.data != nil {
+        defer freeImage(gltf_node.texture)
 
-        if gltf_node.texture.data != nil {
-            defer freeImage(gltf_node.texture)
-
-            node_init_opts.texture = initTextureImage(
-                gltf_node.texture,
-                renderer.device,
-                renderer.texture_sampler,
-                allocator,
-            )
-        }
-
-        append(&result, initNode(node_init_opts, renderer))
+        node_init_opts.texture = initTextureImage(
+            gltf_node.texture,
+            renderer.device,
+            renderer.texture_sampler,
+            allocator,
+        )
     }
 
-    return result[:]
+    return initNode(node_init_opts, renderer)
+
 }

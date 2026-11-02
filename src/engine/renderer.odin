@@ -1,5 +1,6 @@
 package engine
 
+import "core:log"
 import "../vendor/sdl3"
 import "../vendor/sdl3_ttf"
 import "base:runtime"
@@ -180,10 +181,10 @@ destroyRenderer :: proc(renderer: ^Renderer) {
 beginRender :: proc(
     renderer: ^Renderer,
 ) -> (
-    ^sdl3.GPUCommandBuffer,
-    ^sdl3.GPURenderPass,
+    cmd_buffer: ^sdl3.GPUCommandBuffer,
+    render_pass: ^sdl3.GPURenderPass,
 ) {
-    cmd_buffer := sdl3.AcquireGPUCommandBuffer(renderer.device)
+    cmd_buffer = sdl3.AcquireGPUCommandBuffer(renderer.device)
 
     swapchain_texture: ^sdl3.GPUTexture
     swapchain_width, swapchain_height: u32
@@ -232,7 +233,7 @@ beginRender :: proc(
         layer            = 0,
     }
 
-    render_pass := sdl3.BeginGPURenderPass(
+    render_pass = sdl3.BeginGPURenderPass(
         cmd_buffer,
         &color_target_info,
         1,
@@ -262,4 +263,45 @@ endRender :: proc(
 
     assert(sdl3.SubmitGPUCommandBuffer(cmd_buffer))
 
+}
+
+RenderData :: struct {
+    pipelines: map[string]^Pipeline,
+    nodes:     map[string]^Node,
+}
+
+initRenderData :: proc(allocator := context.allocator) -> ^RenderData {
+    render_data := new(RenderData, allocator)
+
+    render_data.pipelines = make(map[string]^Pipeline, allocator)
+    render_data.nodes = make(map[string]^Node, allocator)
+
+    return render_data
+}
+
+destroyRenderData :: proc(render_data: ^RenderData) {
+    delete(render_data.pipelines)
+    delete(render_data.nodes)
+    free(render_data)
+}
+
+render :: proc(data: ^RenderData, renderer: ^Renderer, camera: Camera) {
+    cmd_buffer, render_pass := beginRender(renderer)
+
+    for key, pipeline in data.pipelines {
+        bindPipeline(render_pass, pipeline)
+    }
+
+    for key, node in data.nodes {
+        updateNode(node)
+
+        if node.type == .Text {
+            // TODO: Temp
+            drawNode(node, D2_CAMERA, cmd_buffer, render_pass, renderer)
+        } else {
+            drawNode(node, camera, cmd_buffer, render_pass, renderer)
+        }
+    }
+
+    endRender(cmd_buffer, render_pass)
 }

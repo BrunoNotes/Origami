@@ -22,6 +22,7 @@ Node :: struct {
     color:                                             linalg.Vector4f32,
     type:                                              NodeType,
     id, text:                                          string,
+    font:                                              ^sdl3_ttf.Font,
 }
 
 NodeInitOpts :: struct {
@@ -35,6 +36,7 @@ NodeInitOpts :: struct {
     translation, scale:  linalg.Vector3f32,
     transform_matrix:    linalg.Matrix4f32,
     color:               linalg.Vector4f32,
+    font:                ^sdl3_ttf.Font,
 }
 
 initNode :: proc(
@@ -49,6 +51,8 @@ initNode :: proc(
     } else {
         node.id = opts.id
     }
+
+    node.type = opts.type
 
     if len(opts.vertices) > 0 {
         node.vertex_buffer, node.vertex_len = createNodeVertexBuffer(
@@ -92,55 +96,9 @@ initNode :: proc(
 
     node.text = strings.clone(opts.text, allocator)
 
-    return node
-}
-
-initTextNode :: proc(
-    text: string,
-    font: ^sdl3_ttf.Font,
-    renderer: ^Renderer,
-    allocator := context.allocator,
-) -> ^Node {
-    text := text
-
-    // TODO: sdl_ttf does not accept empty strings, find a solution to accept
-    // this is a temp hack
-    assert(len(text) > 0, "TODO: fix, sdl_ttf does not accept empty strings")
-
-    text_to_render := sdlCheck(
-        sdl3_ttf.CreateText(
-            renderer.txt_engine,
-            font,
-            strings.clone_to_cstring(text, context.temp_allocator),
-            0,
-        ),
-    )
-    defer sdl3_ttf.DestroyText(text_to_render)
-
-    txt_node := sequenceToTextNode(
-        text_to_render,
-        font,
-        cast(f32)renderer.window_width,
-        cast(f32)renderer.window_height,
-    )
-
-    texture: Texture = {
-        handle  = txt_node.texture,
-        sampler = renderer.font_sampler,
-        destroy = false,
+    if opts.font != nil {
+        node.font = opts.font
     }
-
-    node := initNode(
-        {
-            vertices = txt_node.vertices[:],
-            indices = txt_node.indices[:],
-            texture = texture,
-            type = .Text,
-            text = text,
-        },
-        renderer,
-        allocator,
-    )
 
     return node
 }

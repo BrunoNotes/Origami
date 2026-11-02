@@ -48,6 +48,9 @@ main :: proc() {
 
     defer eng.destroyEngine(engine)
 
+    render_data := eng.initRenderData()
+    defer eng.destroyRenderData(render_data)
+
     pipeline := eng.initPipeline(
         {
             wireframe = false,
@@ -60,6 +63,8 @@ main :: proc() {
         engine.renderer,
     )
     defer eng.destroyPipeline(engine.renderer.device, pipeline)
+
+    render_data.pipelines[pipeline.id] = pipeline
 
     camera := eng.PERSPECTIVE_CAMERA
     camera.translation = {0, 0, 5}
@@ -79,6 +84,8 @@ main :: proc() {
     )
     defer eng.destroyNode(triangle_node, engine.renderer)
 
+    render_data.nodes[triangle_node.id] = triangle_node
+
     sponza_path := "/home/bruno/tmp/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf"
     sponza_data, _ := eng.loadGltf(sponza_path)
     defer eng.destroyGltf(sponza_data)
@@ -88,6 +95,10 @@ main :: proc() {
         eng.destroyNode(node, engine.renderer)
     }
 
+    for node in sponza_node {
+        render_data.nodes[node.id] = node
+    }
+
     text_node := eng.initTextNode(
         "test",
         engine.renderer.default_font,
@@ -95,6 +106,8 @@ main :: proc() {
     )
     defer eng.destroyNode(text_node, engine.renderer)
     text_node.translation = {-1, -1, 0}
+
+    render_data.nodes[text_node.id] = text_node
 
     free_all(context.temp_allocator)
 
@@ -117,39 +130,12 @@ main :: proc() {
             cast(f32)engine.renderer.window_height,
         )
 
-        cmd_buffer, render_pass := eng.beginRender(engine.renderer)
-
-        sdl3.BindGPUGraphicsPipeline(render_pass, pipeline)
-
-        eng.updateNode(triangle_node)
-        eng.drawNode(
-            triangle_node,
-            camera,
-            cmd_buffer,
-            render_pass,
-            engine.renderer,
-        )
-
-        for node in sponza_node {
-            eng.updateNode(node)
-            eng.drawNode(
-                node,
-                camera,
-                cmd_buffer,
-                render_pass,
-                engine.renderer,
-            )
-        }
-
-        eng.drawTextNode(
+        eng.updateTextNode(
             text_node,
             fmt.tprintf("fps: %v", engine.fps),
             engine.renderer,
-            cmd_buffer,
-            render_pass,
         )
 
-        eng.endRender(cmd_buffer, render_pass)
-
+        eng.render(render_data, engine.renderer, camera)
     }
 }

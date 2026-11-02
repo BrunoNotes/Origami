@@ -1,7 +1,7 @@
 package engine
 
 import "../vendor/sdl3"
-import "core:log"
+import "core:encoding/uuid"
 
 PipelineInitOpts :: struct {
     wireframe:                  bool,
@@ -14,14 +14,29 @@ PipelineInitOpts :: struct {
     fragment_storage_textures:  u32,
     fragment_uniform_buffers:   u32,
     vertex_code, fragment_code: []u8,
+    id:                         string,
+}
+
+Pipeline :: struct {
+    handle: ^sdl3.GPUGraphicsPipeline,
+    id:     string,
 }
 
 initPipeline :: proc(
     opts: PipelineInitOpts,
     renderer: ^Renderer,
-) -> ^sdl3.GPUGraphicsPipeline {
+    allocator := context.allocator,
+) -> ^Pipeline {
     assert(len(opts.vertex_code) > 0, "Vertex code not defined")
     assert(len(opts.fragment_code) > 0, "Fragment code not defined")
+
+    pipeline := new(Pipeline, allocator)
+
+    if len(opts.id) <= 0 {
+        pipeline.id = uuid.to_string(uuid.generate_v7(), allocator)
+    } else {
+        pipeline.id = opts.id
+    }
 
     vertex_shader := initGpuShader(
         opts.vertex_code,
@@ -168,7 +183,7 @@ initPipeline :: proc(
         enable_depth_clip          = false,
     }
 
-    graphics_pipeline := sdl3.CreateGPUGraphicsPipeline(
+    pipeline.handle = sdl3.CreateGPUGraphicsPipeline(
         renderer.device,
         pipeline_info,
     )
@@ -176,14 +191,16 @@ initPipeline :: proc(
     sdl3.ReleaseGPUShader(renderer.device, vertex_shader)
     sdl3.ReleaseGPUShader(renderer.device, fragment_shader)
 
-    return graphics_pipeline
+    return pipeline
 }
 
-destroyPipeline :: proc(
-    device: ^sdl3.GPUDevice,
-    pipeline: ^sdl3.GPUGraphicsPipeline,
-) {
-    sdl3.ReleaseGPUGraphicsPipeline(device, pipeline)
+destroyPipeline :: proc(device: ^sdl3.GPUDevice, pipeline: ^Pipeline) {
+    sdl3.ReleaseGPUGraphicsPipeline(device, pipeline.handle)
+    free(pipeline)
+}
+
+bindPipeline :: proc(render_pass: ^sdl3.GPURenderPass, pipeline: ^Pipeline) {
+    sdl3.BindGPUGraphicsPipeline(render_pass, pipeline.handle)
 }
 
 initGpuShader :: proc(
