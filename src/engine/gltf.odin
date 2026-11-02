@@ -392,42 +392,44 @@ nodeFromGltf :: proc(
     renderer: ^Renderer,
     file_path: string = "",
     allocator := context.allocator,
-) -> ^Node {
-    result_node: ^Node = nil
+) -> []^Node {
+    result := make([dynamic]^Node)
 
     for scene in data.scenes {
         for node in scene.nodes {
             if node.mesh != nil && len(node.mesh.primitives) > 0 {
-                result_node = gltfNodeToNode(
-                    result_node,
+                result_nodes := gltfNodeToNode(
                     node,
                     file_path,
                     renderer,
+                    allocator
                 )
+
+                append(&result, ..result_nodes[:])
             }
 
             for child_node in node.children {
-                result_node = gltfNodeToNode(
-                    result_node,
+                result_nodes := gltfNodeToNode(
                     child_node,
                     file_path,
                     renderer,
+                    allocator,
                 )
+                append(&result, ..result_nodes[:])
             }
         }
     }
 
-    return result_node
+    return result[:]
 }
 
 gltfNodeToNode :: proc(
-    result_node: ^Node,
     node: ^cgltf.node,
     file_path: string,
     renderer: ^Renderer,
     allocator := context.allocator,
-) -> ^Node {
-    result_node := result_node
+) -> []^Node {
+    result := make([dynamic]^Node)
     gltf_nodes := processGltfNode(node, file_path, allocator)
 
     for gltf_node in gltf_nodes {
@@ -449,16 +451,8 @@ gltfNodeToNode :: proc(
             )
         }
 
-        if result_node == nil {
-            result_node = initNode(node_init_opts, renderer)
-        } else {
-            node_init_opts.type = .Child
-            node_init_opts.parent_id = result_node.id
-
-            child_node := initNode(node_init_opts, renderer)
-            result_node.child_nodes[child_node.id] = child_node
-        }
+        append(&result, initNode(node_init_opts, renderer))
     }
 
-    return result_node
+    return result[:]
 }

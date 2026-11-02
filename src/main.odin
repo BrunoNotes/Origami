@@ -79,21 +79,17 @@ main :: proc() {
     )
     defer eng.destroyNode(triangle_node, engine.renderer)
 
-    box_data, _ := eng.loadGltf("assets/models/BoxTextured.glb")
-    defer eng.destroyGltf(box_data)
-
-    box_node := eng.nodeFromGltf(box_data, engine.renderer)
-    defer eng.destroyNode(box_node, engine.renderer)
-
     sponza_path := "/home/bruno/tmp/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf"
     sponza_data, _ := eng.loadGltf(sponza_path)
     defer eng.destroyGltf(sponza_data)
 
     sponza_node := eng.nodeFromGltf(sponza_data, engine.renderer, sponza_path)
-    defer eng.destroyNode(sponza_node, engine.renderer)
+    defer for node in sponza_node {
+        eng.destroyNode(node, engine.renderer)
+    }
 
     text_node := eng.initTextNode(
-        "hello",
+        "test",
         engine.renderer.default_font,
         engine.renderer,
     )
@@ -134,32 +130,20 @@ main :: proc() {
             engine.renderer,
         )
 
-        eng.updateNode(box_node)
-        eng.drawNode(
-            box_node,
-            camera,
-            cmd_buffer,
-            render_pass,
-            engine.renderer,
-        )
-
-        eng.updateNode(sponza_node)
-        eng.drawNode(
-            sponza_node,
-            camera,
-            cmd_buffer,
-            render_pass,
-            engine.renderer,
-        )
-
-        // eng.drawText("Hello world", engine.renderer, cmd_buffer, render_pass)
-        // buf: [8]byte
-        // fps := strconv.write_float(buf[:], engine.fps, 'f', 2, 64)
-        fps := fmt.tprintf("fps: %v", engine.fps)
+        for node in sponza_node {
+            eng.updateNode(node)
+            eng.drawNode(
+                node,
+                camera,
+                cmd_buffer,
+                render_pass,
+                engine.renderer,
+            )
+        }
 
         eng.drawTextNode(
             text_node,
-            fps,
+            fmt.tprintf("fps: %v", engine.fps),
             engine.renderer,
             cmd_buffer,
             render_pass,

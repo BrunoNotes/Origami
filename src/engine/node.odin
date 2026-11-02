@@ -9,12 +9,10 @@ import "core:strings"
 
 NodeType :: enum {
     Undefined,
-    Child,
     Text,
 }
 
 Node :: struct {
-    child_nodes:                                       map[string]^Node,
     vertex_buffer, index_buffer, indirect_draw_buffer: ^sdl3.GPUBuffer,
     vertex_len, index_len, instances:                  u32,
     texture:                                           Texture,
@@ -23,7 +21,7 @@ Node :: struct {
     transform_matrix:                                  linalg.Matrix4f32,
     color:                                             linalg.Vector4f32,
     type:                                              NodeType,
-    id, parent_id, text:                               string,
+    id, text:                                          string,
 }
 
 NodeInitOpts :: struct {
@@ -50,19 +48,6 @@ initNode :: proc(
         node.id = uuid.to_string(uuid.generate_v7(), allocator)
     } else {
         node.id = opts.id
-    }
-
-    #partial switch opts.type {
-    case .Child:
-        {
-            if len(opts.parent_id) <= 0 {
-                log.fatalf("parent_id not specified for node: %v", node.id)
-            }
-        }
-    case:
-        {
-            node.child_nodes = make(map[string]^Node, allocator)
-        }
     }
 
     if len(opts.vertices) > 0 {
@@ -164,13 +149,6 @@ destroyNode :: proc(node: ^Node, renderer: ^Renderer) {
     if node == nil {
         log.errorf("Node is nil, unable to destroy")
         return
-    }
-
-    if node.child_nodes != nil {
-        for _, child in node.child_nodes {
-            destroyNode(child, renderer)
-        }
-        delete(node.child_nodes)
     }
 
     if node.indirect_draw_buffer != nil {
@@ -297,10 +275,6 @@ updateNode :: proc(node: ^Node) {
 
     node.transform_matrix =
         translation * rotation_matrix * linalg.matrix4_scale(node.scale)
-
-    for key, child in &node.child_nodes {
-        updateNode(child)
-    }
 }
 
 drawNode :: proc(
@@ -388,8 +362,4 @@ drawNode :: proc(
         // node.indirect_draw_count,
         1,
     )
-
-    for _, child in node.child_nodes {
-        drawNode(child, camera, cmd_buffer, render_pass, renderer)
-    }
 }

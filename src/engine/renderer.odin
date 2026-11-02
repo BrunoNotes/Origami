@@ -154,6 +154,7 @@ initRenderer :: proc(
     sdl3_ttf.SetGPUTextEngineWinding(renderer.txt_engine, .COUNTER_CLOCKWISE)
 
     // TODO: make a font size update
+    // TODO: load from memory
     renderer.default_font = sdlCheck(
         sdl3_ttf.OpenFont("assets/fonts/JetBrainsMono-Regular.ttf", 16),
         "Failed to load font:",
