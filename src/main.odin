@@ -86,7 +86,11 @@ main :: proc() {
 
     render_data.nodes[triangle_node.id] = triangle_node
 
-    sponza_path := "/home/bruno/tmp/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf"
+    when ODIN_OS == .Windows {
+        sponza_path := "W:\\tmp\\glTF-Sample-Models\\2.0\\Sponza\\glTF\\Sponza.gltf"
+    } else {
+        sponza_path := "/home/bruno/tmp/glTF-Sample-Models/2.0/Sponza/glTF/Sponza.gltf"
+    }
     sponza_data, _ := eng.loadGltf(sponza_path)
     defer eng.destroyGltf(sponza_data)
 

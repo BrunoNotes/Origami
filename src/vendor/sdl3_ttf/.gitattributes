@@ -1,1 +1,2 @@
-lib/linux/libSDL3_ttf.a filter=lfs diff=lfs merge=lfs -text
+lib/linux filter=lfs diff=lfs merge=lfs -text
+lib/windows filter=lfs diff=lfs merge=lfs -text
