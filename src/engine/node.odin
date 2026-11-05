@@ -12,6 +12,11 @@ NodeType :: enum {
     Text,
 }
 
+NodeAlphaMode :: enum {
+    Opaque,
+    Transparent,
+}
+
 Node :: struct {
     vertex_buffer, index_buffer, indirect_draw_buffer: ^sdl3.GPUBuffer,
     vertex_len, index_len, instances:                  u32,
@@ -23,6 +28,7 @@ Node :: struct {
     type:                                              NodeType,
     id, text:                                          string,
     font:                                              ^sdl3_ttf.Font,
+    alpha_mode:                                        NodeAlphaMode,
 }
 
 NodeInitOpts :: struct {
@@ -37,6 +43,7 @@ NodeInitOpts :: struct {
     transform_matrix:    linalg.Matrix4f32,
     color:               linalg.Vector4f32,
     font:                ^sdl3_ttf.Font,
+    alpha_mode:          NodeAlphaMode,
 }
 
 initNode :: proc(
@@ -87,6 +94,7 @@ initNode :: proc(
     node.instances = opts.instances <= 0 ? 1 : opts.instances
     node.rotation = opts.rotation
     node.translation = opts.translation
+    node.alpha_mode = opts.alpha_mode
 
     node.scale = opts.scale == 0 ? 1 : opts.scale
 

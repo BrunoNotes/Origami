@@ -76,6 +76,7 @@ GltfNode :: struct {
     indices:            []u32,
     vertices:           []Vertex,
     texture:            Image,
+    alpha_mode:         NodeAlphaMode,
 }
 
 processGltfNode :: proc(
@@ -380,6 +381,12 @@ processGltfNode :: proc(
                 }
             }
 
+            if prim.material.alpha_mode == .blend {
+                gltf_node.alpha_mode = .Transparent
+            } else {
+                gltf_node.alpha_mode = .Opaque
+            }
+
             append(&gltf_nodes, gltf_node)
         }
     }
@@ -433,6 +440,7 @@ gltfNodeToNode :: proc(
     node_init_opts.rotation = gltf_node.rotation
     node_init_opts.translation = gltf_node.translation
     node_init_opts.scale = gltf_node.scale
+    node_init_opts.alpha_mode = gltf_node.alpha_mode
 
     if gltf_node.texture.data != nil {
         defer freeImage(gltf_node.texture)

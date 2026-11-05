@@ -1,6 +1,8 @@
 package engine
 
 import "core:log"
+import "core:math/linalg"
+import "core:sort"
 import "../vendor/sdl3"
 import "../vendor/sdl3_ttf"
 import "base:runtime"
@@ -265,43 +267,3 @@ endRender :: proc(
 
 }
 
-RenderData :: struct {
-    pipelines: map[string]^Pipeline,
-    nodes:     map[string]^Node,
-}
-
-initRenderData :: proc(allocator := context.allocator) -> ^RenderData {
-    render_data := new(RenderData, allocator)
-
-    render_data.pipelines = make(map[string]^Pipeline, allocator)
-    render_data.nodes = make(map[string]^Node, allocator)
-
-    return render_data
-}
-
-destroyRenderData :: proc(render_data: ^RenderData) {
-    delete(render_data.pipelines)
-    delete(render_data.nodes)
-    free(render_data)
-}
-
-render :: proc(data: ^RenderData, renderer: ^Renderer, camera: Camera) {
-    cmd_buffer, render_pass := beginRender(renderer)
-
-    for key, pipeline in data.pipelines {
-        bindPipeline(render_pass, pipeline)
-    }
-
-    for key, node in data.nodes {
-        updateNode(node)
-
-        if node.type == .Text {
-            // TODO: Temp
-            drawNode(node, D2_CAMERA, cmd_buffer, render_pass, renderer)
-        } else {
-            drawNode(node, camera, cmd_buffer, render_pass, renderer)
-        }
-    }
-
-    endRender(cmd_buffer, render_pass)
-}

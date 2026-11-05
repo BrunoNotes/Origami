@@ -1,9 +1,11 @@
 package main
 
+import "base:runtime"
 import "core:fmt"
 import "core:log"
 import "core:math/linalg"
 import vmem "core:mem/virtual"
+import "core:sort"
 import "core:strconv"
 
 import eng "./engine"
@@ -48,10 +50,7 @@ main :: proc() {
 
     defer eng.destroyEngine(engine)
 
-    render_data := eng.initRenderData()
-    defer eng.destroyRenderData(render_data)
-
-    pipeline := eng.initPipeline(
+    opaque_pipeline := eng.initPipeline(
         {
             wireframe = false,
             vertex_code = mesh_vertex_code,
@@ -59,12 +58,25 @@ main :: proc() {
             fragment_code = mesh_fragment_code,
             fragment_uniform_buffers = 1,
             fragment_samplers = 1,
+            depth_write = true,
         },
         engine.renderer,
     )
-    defer eng.destroyPipeline(engine.renderer.device, pipeline)
+    defer eng.destroyPipeline(engine.renderer.device, opaque_pipeline)
 
-    render_data.pipelines[pipeline.id] = pipeline
+    transparent_pipeline := eng.initPipeline(
+        {
+            wireframe = false,
+            vertex_code = mesh_vertex_code,
+            vertex_uniform_buffers = 3,
+            fragment_code = mesh_fragment_code,
+            fragment_uniform_buffers = 1,
+            fragment_samplers = 1,
+            depth_write = false,
+        },
+        engine.renderer,
+    )
+    defer eng.destroyPipeline(engine.renderer.device, transparent_pipeline)
 
     camera := eng.PERSPECTIVE_CAMERA
     camera.translation = {0, 0, 5}
@@ -84,7 +96,7 @@ main :: proc() {
     )
     defer eng.destroyNode(triangle_node, engine.renderer)
 
-    render_data.nodes[triangle_node.id] = triangle_node
+    append(&opaque_pipeline.nodes, triangle_node)
 
     when ODIN_OS == .Windows {
         sponza_path := "W:\\tmp\\glTF-Sample-Models\\2.0\\Sponza\\glTF\\Sponza.gltf"
@@ -95,12 +107,15 @@ main :: proc() {
     defer eng.destroyGltf(sponza_data)
 
     sponza_node := eng.nodeFromGltf(sponza_data, engine.renderer, sponza_path)
+    for node in sponza_node {
+        if node.alpha_mode == .Transparent {
+            append(&transparent_pipeline.nodes, node)
+        } else {
+            append(&opaque_pipeline.nodes, node)
+        }
+    }
     defer for node in sponza_node {
         eng.destroyNode(node, engine.renderer)
-    }
-
-    for node in sponza_node {
-        render_data.nodes[node.id] = node
     }
 
     text_node := eng.initTextNode(
@@ -111,7 +126,7 @@ main :: proc() {
     defer eng.destroyNode(text_node, engine.renderer)
     text_node.translation = {-1, -1, 0}
 
-    render_data.nodes[text_node.id] = text_node
+    append(&opaque_pipeline.nodes, text_node)
 
     free_all(context.temp_allocator)
 
@@ -140,6 +155,24 @@ main :: proc() {
             engine.renderer,
         )
 
-        eng.render(render_data, engine.renderer, camera)
+        cmd_buffer, render_pass := eng.beginRender(engine.renderer)
+
+        eng.renderPipeline(
+            cmd_buffer,
+            render_pass,
+            opaque_pipeline,
+            camera,
+            engine.renderer,
+        )
+
+        eng.renderPipeline(
+            cmd_buffer,
+            render_pass,
+            transparent_pipeline,
+            camera,
+            engine.renderer,
+        )
+
+        eng.endRender(cmd_buffer, render_pass)
     }
 }
