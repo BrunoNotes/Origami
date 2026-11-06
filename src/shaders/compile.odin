@@ -8,6 +8,12 @@ g_out_folder: string = ""
 g_read_folder: string = ""
 g_read_input: string = ""
 
+when ODIN_OS == .Windows {
+    path_char :: "\\"
+} else {
+    path_char :: "/"
+}
+
 main :: proc() {
     context.logger = log.create_console_logger(opt = {.Level, .Terminal_Color})
 
@@ -75,7 +81,7 @@ compileSlang :: proc(file: os.File_Info) {
 
     file_path_split := strings.split(
         file.fullpath,
-        "/",
+        path_char,
         context.temp_allocator,
     )
 
@@ -171,7 +177,7 @@ compileGlslc :: proc(file: os.File_Info) {
 
     file_path_split := strings.split(
         file.fullpath,
-        "/",
+        path_char,
         context.temp_allocator,
     )
 
@@ -186,7 +192,7 @@ compileGlslc :: proc(file: os.File_Info) {
     )
 
     out_path, _ := strings.concatenate(
-        {g_out_folder, "/", out_file},
+        {g_out_folder, path_char, out_file},
         context.temp_allocator,
     )
 
