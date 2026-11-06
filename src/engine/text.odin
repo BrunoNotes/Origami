@@ -99,7 +99,11 @@ getTextDrawData :: proc(
             seq_vertices[i] = vertex
         }
 
-        seq_indices := make([]u32, sequence.num_indices, context.temp_allocator)
+        seq_indices := make(
+            []u32,
+            sequence.num_indices,
+            context.temp_allocator,
+        )
         for i: i32 = 0; i < sequence.num_indices; i += 1 {
             seq_indices[i] = cast(u32)sequence.indices[i]
         }
@@ -120,6 +124,10 @@ updateTextNode :: proc(
     renderer: ^Renderer,
     allocator := context.allocator,
 ) {
+    if node.text == text {
+        return
+    }
+
     text_to_render := sdlCheck(
         sdl3_ttf.CreateText(
             renderer.txt_engine,
@@ -154,4 +162,6 @@ updateTextNode :: proc(
     node.text = strings.clone(text, allocator)
 
     node.indirect_draw_buffer = createNodeDrawBuffer(node, renderer.device)
+
+    updateNode(node)
 }

@@ -1,12 +1,12 @@
 package engine
 
-import "core:log"
-import "core:math/linalg"
-import "core:sort"
 import "../vendor/sdl3"
 import "../vendor/sdl3_ttf"
 import "base:runtime"
 import "core:c"
+import "core:log"
+import "core:math/linalg"
+import "core:sort"
 import "core:strings"
 
 Renderer :: struct {
@@ -180,14 +180,19 @@ destroyRenderer :: proc(renderer: ^Renderer) {
     free(renderer)
 }
 
-beginRender :: proc(
-    renderer: ^Renderer,
-) -> (
-    cmd_buffer: ^sdl3.GPUCommandBuffer,
+beginCmdBuffer :: proc(renderer: ^Renderer) -> ^sdl3.GPUCommandBuffer {
+    cmd_buffer := sdl3.AcquireGPUCommandBuffer(renderer.device)
+
+    return cmd_buffer
+}
+
+endRenderPass :: proc(
     render_pass: ^sdl3.GPURenderPass,
 ) {
-    cmd_buffer = sdl3.AcquireGPUCommandBuffer(renderer.device)
+    sdl3.EndGPURenderPass(render_pass)
+}
 
+beginRenderPass :: proc(renderer: ^Renderer, cmd_buffer: ^sdl3.GPUCommandBuffer) -> ^sdl3.GPURenderPass {
     swapchain_texture: ^sdl3.GPUTexture
     swapchain_width, swapchain_height: u32
     // swapchain_width: u32 = cast(u32)renderer.window_width
@@ -202,6 +207,10 @@ beginRender :: proc(
         ),
     )
 
+    if swapchain_texture == nil {
+        return nil
+    }
+
     color_target_info: sdl3.GPUColorTargetInfo = {
         texture               = swapchain_texture,
         mip_level             = 0,
@@ -212,7 +221,6 @@ beginRender :: proc(
             237.0 / 255.0,
             1.0,
         },
-        // clear_color = {0, 0, 0, 0},
         load_op               = .CLEAR,
         store_op              = .STORE,
         resolve_texture       = nil,
@@ -235,14 +243,12 @@ beginRender :: proc(
         layer            = 0,
     }
 
-    render_pass = sdl3.BeginGPURenderPass(
+    render_pass := sdl3.BeginGPURenderPass(
         cmd_buffer,
         &color_target_info,
         1,
         &depth_target_info,
     )
-
-    // sdl3.BindGPUGraphicsPipeline(render_pass, renderer.mesh_pipeline)
 
     viewport: sdl3.GPUViewport = {
         x         = 0,
@@ -254,16 +260,12 @@ beginRender :: proc(
     }
     sdl3.SetGPUViewport(render_pass, viewport)
 
-    return cmd_buffer, render_pass
+    return render_pass
 }
 
-endRender :: proc(
+endCmdBuffer :: proc(
     cmd_buffer: ^sdl3.GPUCommandBuffer,
-    render_pass: ^sdl3.GPURenderPass,
 ) {
-    sdl3.EndGPURenderPass(render_pass)
-
     assert(sdl3.SubmitGPUCommandBuffer(cmd_buffer))
 
 }
-

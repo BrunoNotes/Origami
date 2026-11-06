@@ -9,9 +9,6 @@ import "core:math/linalg"
 import "core:slice"
 import "core:sort"
 
-@(private)
-_g_sort_ctx: runtime.Context
-
 PipelineInitOpts :: struct {
     wireframe:                  bool,
     depth_write:                bool, // true = opaque, false = transparent
@@ -25,12 +22,12 @@ PipelineInitOpts :: struct {
     fragment_uniform_buffers:   u32,
     vertex_code, fragment_code: []u8,
     id:                         string,
+    cull_mode:                  Maybe(sdl3.GPUCullMode),
 }
 
 Pipeline :: struct {
     handle:     ^sdl3.GPUGraphicsPipeline,
     id:         string,
-    nodes:      [dynamic]^Node,
     alpha_mode: NodeAlphaMode,
 }
 
@@ -43,7 +40,6 @@ initPipeline :: proc(
     assert(len(opts.fragment_code) > 0, "Fragment code not defined")
 
     pipeline := new(Pipeline, allocator)
-    pipeline.nodes = make([dynamic]^Node, allocator)
 
     if len(opts.id) <= 0 {
         pipeline.id = uuid.to_string(uuid.generate_v7(), allocator)
@@ -193,7 +189,7 @@ initPipeline :: proc(
 
     pipeline_info.rasterizer_state = {
         fill_mode                  = opts.wireframe ? .LINE : .FILL,
-        cull_mode                  = .BACK,
+        cull_mode                  = opts.cull_mode == nil ? .BACK : opts.cull_mode.?,
         front_face                 = .COUNTER_CLOCKWISE,
         depth_bias_constant_factor = 0,
         depth_bias_clamp           = 0,
@@ -215,7 +211,6 @@ initPipeline :: proc(
 
 destroyPipeline :: proc(device: ^sdl3.GPUDevice, pipeline: ^Pipeline) {
     sdl3.ReleaseGPUGraphicsPipeline(device, pipeline.handle)
-    delete(pipeline.nodes)
     free(pipeline)
 }
 
@@ -245,45 +240,4 @@ initGpuShader :: proc(
     shader_info.num_uniform_buffers = uniform_buffers
 
     return sdl3.CreateGPUShader(device, shader_info)
-}
-
-renderPipeline :: proc(
-    cmd_buffer: ^sdl3.GPUCommandBuffer,
-    render_pass: ^sdl3.GPURenderPass,
-    pipeline: ^Pipeline,
-    camera: Camera,
-    renderer: ^Renderer,
-) {
-    camera := camera
-    bindPipeline(render_pass, pipeline)
-
-    if pipeline.alpha_mode == .Transparent {
-        _g_sort_ctx.user_ptr = &camera
-
-        slice.sort_by(pipeline.nodes[:], proc(a, b: ^Node) -> bool {
-            context = _g_sort_ctx
-            camera := (^Camera)(context.user_ptr)
-            fmt.printfln("%v", camera.translation)
-            dist_a := linalg.length(a.translation - camera.translation)
-            dist_b := linalg.length(b.translation - camera.translation)
-            if dist_a > dist_b {
-                return true
-            } else {
-                return false
-            }
-        })
-
-        _g_sort_ctx.user_ptr = nil
-    }
-
-    for node in pipeline.nodes {
-        updateNode(node)
-
-        if node.type == .Text {
-            // TODO: Temp
-            drawNode(node, D2_CAMERA, cmd_buffer, render_pass, renderer)
-        } else {
-            drawNode(node, camera, cmd_buffer, render_pass, renderer)
-        }
-    }
 }

@@ -39,6 +39,8 @@ ConstantBuffer<float4x4> u_transform_matrix;
 // fragment uniform
 [[vk::binding(0, 3)]]
 ConstantBuffer<float4> u_color;
+[[vk::binding(1, 3)]]
+ConstantBuffer<float> u_alpha_cutoff;
 
 [shader("vertex")]
 VertexOut vertexMain(VertexIn input) {
@@ -48,7 +50,6 @@ VertexOut vertexMain(VertexIn input) {
   float4x4 view = mul(projection, u_view_matrix);
   float4x4 transform = mul(view, u_transform_matrix);
   output.position = mul(transform, float4(input.position, 1.0));
-  // output.position = float4(input.position, 1.0);
 
   output.color = input.color;
   output.uv = input.uv;
@@ -65,9 +66,13 @@ FragmentOut fragmentMain(FragmentIn input) {
   FragmentOut output;
 
   float4 tex_color = texture.Sample(input.uv);
-  output.color = input.color * u_color * tex_color;
-  // output.color = u_color * tex_color;
+  float4 output_color = input.color * u_color * tex_color;
 
+  if (output_color.w < u_alpha_cutoff) {
+    discard;
+  }
+
+  output.color = output_color;
   return output;
 }
 

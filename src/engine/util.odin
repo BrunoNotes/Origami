@@ -5,7 +5,6 @@ import "base:runtime"
 import "core:log"
 import "core:math/linalg"
 
-@(private)
 _g_ctx: runtime.Context
 
 Vertex :: struct {

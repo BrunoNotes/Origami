@@ -1,5 +1,6 @@
 package engine
 
+import "../vendor/sdl3"
 import "core:math/linalg"
 
 D2_CAMERA: Camera : {
@@ -78,4 +79,20 @@ updateCameraProjection :: proc(cam: ^Camera, width, height: f32) {
             cam.projection_matrix = 1
         }
     }
+}
+
+renderCamera :: proc(cmd_buffer: ^sdl3.GPUCommandBuffer, camera: ^Camera) {
+    sdl3.PushGPUVertexUniformData(
+        cmd_buffer,
+        0,
+        &camera.projection_matrix,
+        size_of(linalg.Matrix4f32),
+    )
+
+    sdl3.PushGPUVertexUniformData(
+        cmd_buffer,
+        1,
+        &camera.view_matrix,
+        size_of(linalg.Matrix4f32),
+    )
 }

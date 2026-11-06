@@ -10,6 +10,17 @@ import "core:math/linalg"
 import "core:path/filepath"
 import "core:strings"
 
+GltfNode :: struct {
+    rotation:           linalg.Quaternionf32,
+    translation, scale: linalg.Vector3f32,
+    indices:            []u32,
+    vertices:           []Vertex,
+    texture:            Image,
+    alpha_mode:         NodeAlphaMode,
+    alpha_cutoff:       f32,
+    double_sided:       bool,
+}
+
 loadGltf :: proc {
     loadGltfFile,
     loadGltfByte,
@@ -68,15 +79,6 @@ loadGltfByte :: proc(
 
 destroyGltf :: proc(data: ^cgltf.data) {
     cgltf.free(data)
-}
-
-GltfNode :: struct {
-    rotation:           linalg.Quaternionf32,
-    translation, scale: linalg.Vector3f32,
-    indices:            []u32,
-    vertices:           []Vertex,
-    texture:            Image,
-    alpha_mode:         NodeAlphaMode,
 }
 
 processGltfNode :: proc(
@@ -387,6 +389,9 @@ processGltfNode :: proc(
                 gltf_node.alpha_mode = .Opaque
             }
 
+            gltf_node.double_sided = prim.material.double_sided ? true : false
+            gltf_node.alpha_cutoff = prim.material.alpha_cutoff
+
             append(&gltf_nodes, gltf_node)
         }
     }
@@ -441,6 +446,8 @@ gltfNodeToNode :: proc(
     node_init_opts.translation = gltf_node.translation
     node_init_opts.scale = gltf_node.scale
     node_init_opts.alpha_mode = gltf_node.alpha_mode
+    node_init_opts.double_sided = gltf_node.double_sided
+    node_init_opts.alpha_cutoff = gltf_node.alpha_cutoff
 
     if gltf_node.texture.data != nil {
         defer freeImage(gltf_node.texture)

@@ -29,6 +29,8 @@ Node :: struct {
     id, text:                                          string,
     font:                                              ^sdl3_ttf.Font,
     alpha_mode:                                        NodeAlphaMode,
+    double_sided:                                      bool,
+    alpha_cutoff:                                      f32,
 }
 
 NodeInitOpts :: struct {
@@ -44,6 +46,8 @@ NodeInitOpts :: struct {
     color:               linalg.Vector4f32,
     font:                ^sdl3_ttf.Font,
     alpha_mode:          NodeAlphaMode,
+    double_sided:        bool,
+    alpha_cutoff:        f32,
 }
 
 initNode :: proc(
@@ -107,6 +111,9 @@ initNode :: proc(
     if opts.font != nil {
         node.font = opts.font
     }
+
+    node.double_sided = opts.double_sided
+    node.alpha_cutoff = opts.alpha_cutoff
 
     return node
 }
@@ -245,27 +252,10 @@ updateNode :: proc(node: ^Node) {
 
 drawNode :: proc(
     node: ^Node,
-    camera: Camera,
     cmd_buffer: ^sdl3.GPUCommandBuffer,
     render_pass: ^sdl3.GPURenderPass,
     renderer: ^Renderer,
 ) {
-    camera := camera
-
-    sdl3.PushGPUVertexUniformData(
-        cmd_buffer,
-        0,
-        &camera.projection_matrix,
-        size_of(linalg.Matrix4f32),
-    )
-
-    sdl3.PushGPUVertexUniformData(
-        cmd_buffer,
-        1,
-        &camera.view_matrix,
-        size_of(linalg.Matrix4f32),
-    )
-
     sdl3.PushGPUVertexUniformData(
         cmd_buffer,
         2,
@@ -279,6 +269,15 @@ drawNode :: proc(
         &node.color,
         size_of(linalg.Vector4f32),
     )
+
+    if node.type != .Text {
+        sdl3.PushGPUFragmentUniformData(
+            cmd_buffer,
+            1,
+            &node.alpha_cutoff,
+            size_of(f32),
+        )
+    }
 
     vertex_buffer_bindings := [?]sdl3.GPUBufferBinding {
         {buffer = node.vertex_buffer, offset = 0},
