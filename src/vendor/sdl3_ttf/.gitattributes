@@ -1,2 +1,0 @@
-lib/linux filter=lfs diff=lfs merge=lfs -text
-lib/windows filter=lfs diff=lfs merge=lfs -text

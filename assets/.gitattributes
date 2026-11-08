@@ -1,2 +1,0 @@
-textures/default.png filter=lfs diff=lfs merge=lfs -text
-fonts/JetBrainsMono-Regular.ttf filter=lfs diff=lfs merge=lfs -text
