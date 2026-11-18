@@ -9,6 +9,9 @@ import "core:math/linalg"
 import "core:sort"
 import "core:strings"
 
+@(private)
+default_font := #load("../../assets/fonts/JetBrainsMono-Regular.ttf")
+
 Renderer :: struct {
     window:                        ^sdl3.Window,
     window_width, window_height:   i32,
@@ -156,12 +159,17 @@ initRenderer :: proc(
     )
     sdl3_ttf.SetGPUTextEngineWinding(renderer.txt_engine, .COUNTER_CLOCKWISE)
 
+    font_stream := sdl3.IOFromMem(raw_data(default_font), len(default_font))
+    assert(font_stream != nil)
+
     // TODO: make a font size update
-    // TODO: load from memory
     renderer.default_font = sdlCheck(
-        sdl3_ttf.OpenFont("assets/fonts/JetBrainsMono-Regular.ttf", 16),
+        // sdl3_ttf.OpenFont("assets/fonts/JetBrainsMono-Regular.ttf", 16),
+        sdl3_ttf.OpenFontIO(font_stream, true, 16),
         "Failed to load font:",
     )
+
+    assert(renderer.default_font != nil)
 
     return renderer
 }
